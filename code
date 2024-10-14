@@ -1,0 +1,187 @@
+#!/bin/bash
+
+# Main menu function
+function main_menu {
+    echo "Simple Database Management System"
+    echo "==========================="
+    echo "1. Create Database"
+    echo "2. List Databases"
+    echo "3. Connect to Database"
+    echo "4. Drop Database"
+    echo "5. Exit"
+    echo "==========================="
+    read -p "Select an option: " option
+
+    case $option in
+        1) create_database ;;
+        2) list_databases ;;
+        3) connect_database ;;
+        4) drop_database ;;
+        5) exit ;;
+        *) echo "Invalid option" ;;
+    esac
+}
+
+# Function to create a database
+function create_database {
+    read -p "Enter database name: " db_name
+    mkdir -p "$db_name"
+    echo "Database '$db_name' created."
+}
+
+# Function to list databases
+function list_databases {
+    echo "Available databases:"
+    ls -d */
+}
+
+# Function to connect to a database
+function connect_database {
+    read -p "Enter database name to connect: " db_name
+    if [ -d "$db_name" ]; then
+        cd "$db_name" || exit
+        database_menu
+    else
+        echo "Database does not exist."
+    fi
+}
+
+# Function to drop a database
+function drop_database {
+    read -p "Enter database name to drop: " db_name
+    rm -rf "$db_name"
+    echo "Database '$db_name' dropped."
+}
+
+# Function to manage tables within the database
+function database_menu {
+    while true; do
+        echo "Database: $db_name"
+        echo "====================="
+        echo "1. Create Table"
+        echo "2. List Tables"
+        echo "3. Drop Table"
+        echo "4. Insert into Table"
+        echo "5. Select from Table"
+        echo "6. Delete from Table"
+        echo "7. Update Table"
+        echo "8. Back to Main Menu"
+        echo "====================="
+        read -p "Select an option: " option
+
+        case $option in
+            1) create_table ;;
+            2) list_tables ;;
+            3) drop_table ;;
+            4) insert_into_table ;;
+            5) select_from_table ;;
+            6) delete_from_table ;;
+            7) update_table ;;
+            8) cd ..; main_menu; break ;;
+            *) echo "Invalid option" ;;
+        esac
+    done
+}
+
+# Function to create a table
+function create_table {
+    read -p "Enter table name: " table_name
+    read -p "Enter columns (comma-separated, e.g., 'id:int,name:string'): " columns
+    echo "$columns" > "$table_name.meta"
+    touch "$table_name"
+    echo "Table '$table_name' created."
+}
+
+# Function to list tables
+function list_tables {
+    echo "Tables in database $db_name:"
+    ls *.meta | sed 's/.meta//g'
+}
+
+# Function to drop a table
+function drop_table {
+    read -p "Enter table name to drop: " table_name
+    rm -f "$table_name" "$table_name.meta"
+    echo "Table '$table_name' dropped."
+}
+
+# Function to insert data into a table
+function insert_into_table {
+    read -p "Enter table name: " table_name
+    if [ ! -f "$table_name" ]; then
+        echo "Table does not exist."
+        return
+    fi
+
+    meta_info=$(cat "$table_name.meta")
+    columns=$(echo $meta_info | tr ',' '\n')
+    row=""
+
+    for column in $columns; do
+        col_name=$(echo $column | cut -d':' -f1)
+        col_type=$(echo $column | cut -d':' -f2)
+
+        while true; do
+            read -p "Enter value for $col_name ($col_type): " value
+            # Type check (int or string)
+            if [[ $col_type == "int" && $value =~ ^[0-9]+$ ]]; then
+                break
+            elif [[ $col_type == "string" && $value =~ ^[a-zA-Z]+$ ]]; then
+                break
+            else
+                echo "Invalid value for $col_type, try again."
+            fi
+        done
+
+        if [[ -z "$row" ]]; then
+            row="$value"
+        else
+            row="$row|$value"
+        fi
+    done
+
+    echo $row >> "$table_name"
+    echo "Row inserted into $table_name."
+}
+
+# Function to select data from a table
+function select_from_table {
+    read -p "Enter table name: " table_name
+    if [ ! -f "$table_name" ]; then
+        echo "Table does not exist."
+        return
+    fi
+
+    echo "Data in table $table_name:"
+    cat "$table_name" | column -t -s "|"
+}
+
+# Function to delete data from a table
+function delete_from_table {
+    read -p "Enter table name: " table_name
+    if [ ! -f "$table_name" ]; then
+        echo "Table does not exist."
+        return
+    fi
+
+    read -p "Enter row number to delete: " row_number
+    sed -i "${row_number}d" "$table_name"
+    echo "Row number $row_number deleted from table $table_name."
+}
+
+# Function to update data in a table
+function update_table {
+    read -p "Enter table name: " table_name
+    if [ ! -f "$table_name" ]; then
+        echo "Table does not exist."
+        return
+    fi
+
+    read -p "Enter row number to update: " row_number
+    read -p "Enter new data (pipe-separated): " new_data
+    sed -i "${row_number}s/.*/$new_data/" "$table_name"
+    echo "Row number $row_number updated in table $table_name."
+}
+
+# Start with the main menu
+main_menu
